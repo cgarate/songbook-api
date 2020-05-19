@@ -97,6 +97,25 @@ const resolvers = {
         .get();
       return songs.docs.map(song => song.data()) as Song[];
     },
+    async song(_: null, args: { id: string }) {
+      try {
+        const songDoc = await admin
+          .firestore()
+          .doc(`songs/${args.id}`)
+          .get();
+        const song = songDoc.data() as Song | undefined;
+        return song || new ValidationError('Song ID not found');
+      } catch (error) {
+        throw new ApolloError(error);
+      }
+    },
+    async users() {
+      const users = await admin
+        .firestore()
+        .collection('users')
+        .get();
+      return users.docs.map(user => user.data()) as User[];
+    },
     async user(_: null, args: { id: string }) {
       try {
         const userDoc = await admin
@@ -109,6 +128,13 @@ const resolvers = {
         throw new ApolloError(error);
       }
     },
+    async playlists() {
+      const playlists = await admin
+        .firestore()
+        .collection('playlists')
+        .get();
+      return playlists.docs.map(pl => pl.data()) as Playlist[];
+    },
     async playlist(_: null, args: { id: string }) {
       try {
         const playlistDoc = await admin
@@ -117,25 +143,6 @@ const resolvers = {
           .get();
         const playlist = playlistDoc.data() as Playlist | undefined;
         return playlist || new ValidationError('Playlist ID not found');
-      } catch (error) {
-        throw new ApolloError(error);
-      }
-    },
-    async playlists() {
-      const playlists = await admin
-        .firestore()
-        .collection('playlists')
-        .get();
-      return playlists.docs.map(pl => pl.data()) as Playlist[];
-    },
-    async song(_: null, args: { id: string }) {
-      try {
-        const songDoc = await admin
-          .firestore()
-          .doc(`songs/${args.id}`)
-          .get();
-        const song = songDoc.data() as Song | undefined;
-        return song || new ValidationError('Song ID not found');
       } catch (error) {
         throw new ApolloError(error);
       }

@@ -11,50 +11,91 @@ import { ApolloServer, ApolloError, ValidationError, gql } from 'apollo-server';
 interface User {
   id: string;
   name: string;
-  screenName: string;
-  statusesCount: number;
+  lastName: string;
+  username: string;
+  email: string;
 }
 
-interface Tweet {
+interface Lyric {
+  original: string;
+  translation: string;
+  transliteration: string;
+}
+
+interface Song {
   id: string;
-  likes: number;
-  text: string;
-  userId: string;
+  name: string;
+  enteredBy: string;
+  language: string;
+  lyrics: [Lyric];
+}
+
+interface PlaylistItem {
+  order: number;
+  songId: string;
+}
+
+interface Playlist {
+  id: string;
+  name: string;
+  createdBy: string;
+  songs: [PlaylistItem]
 }
 
 const typeDefs = gql`
-  # A Twitter User
   type User {
     id: ID!
     name: String!
-    screenName: String!
-    statusesCount: Int!
-    tweets: [Tweets]!
+    lastName: String!
+    username: String!
+    email: String!
   }
 
-  # A Tweet Object
-  type Tweets {
+  type Lyric {
+    original: String
+    translation: String
+    transliteration: String
+  }
+
+  type Song {
     id: ID!
-    text: String!
-    userId: String!
-    user: User!
-    likes: Int!
+    name: String!
+    language: String!
+    enteredBy: String!
+    lyrics: [Lyric]
+  }
+
+  type PlaylistItem {
+    order: Int!
+    songId: String!
+  }
+
+  type Playlist {
+    id: ID!
+    name: String
+    createdBy: String
+    songs: [PlaylistItem]
   }
 
   type Query {
-    tweets: [Tweets]
+    songs: [Song]
+    users: [User]
     user(id: String!): User
+    playlists: [Playlist]
+    playlist(id: String!): Playlist
+    song(id: String!): Song
+    songsByUser(id: String!): [Song]
   }
 `;
 
 const resolvers = {
   Query: {
-    async tweets() {
-      const tweets = await admin
+    async songs() {
+      const songs = await admin
         .firestore()
-        .collection('tweets')
+        .collection('songs')
         .get();
-      return tweets.docs.map(tweet => tweet.data()) as Tweet[];
+      return songs.docs.map(song => song.data()) as Song[];
     },
     async user(_: null, args: { id: string }) {
       try {
@@ -67,42 +108,58 @@ const resolvers = {
       } catch (error) {
         throw new ApolloError(error);
       }
-    }
-  },
-  User: {
-    async tweets(user) {
+    },
+    async playlist(_: null, args: { id: string }) {
       try {
-        const userTweets = await admin
+        const playlistDoc = await admin
           .firestore()
-          .collection('tweets')
-          .where('userId', '==', user.id)
+          .doc(`playlists/${args.id}`)
           .get();
-        return userTweets.docs.map(tweet => tweet.data()) as Tweet[];
+        const playlist = playlistDoc.data() as Playlist | undefined;
+        return playlist || new ValidationError('Playlist ID not found');
+      } catch (error) {
+        throw new ApolloError(error);
+      }
+    },
+    async playlists() {
+      const playlists = await admin
+        .firestore()
+        .collection('playlists')
+        .get();
+      return playlists.docs.map(pl => pl.data()) as Playlist[];
+    },
+    async song(_: null, args: { id: string }) {
+      try {
+        const songDoc = await admin
+          .firestore()
+          .doc(`songs/${args.id}`)
+          .get();
+        const song = songDoc.data() as Song | undefined;
+        return song || new ValidationError('Song ID not found');
+      } catch (error) {
+        throw new ApolloError(error);
+      }
+    },
+    async songsByUser(_: null, user) {
+      try {
+        const songsEnteredByUser = await admin
+          .firestore()
+          .collection('songs')
+          .where('enteredBy', '==', user.id)
+          .get();
+        return songsEnteredByUser.docs.map(song => song.data()) as Song[];
       } catch (error) {
         throw new ApolloError(error);
       }
     }
   },
-  Tweets: {
-    async user(tweet) {
-      try {
-        const tweetAuthor = await admin
-          .firestore()
-          .doc(`users/${tweet.userId}`)
-          .get();
-        return tweetAuthor.data() as User;
-      } catch (error) {
-        throw new ApolloError(error);
-      }
-    }
-  }
 };
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   engine: {
-    apiKey: "<APOLLO ENGINE API KEY HERE>"
+    apiKey: process.env.APOLLO_ENGINE_API_KEY
   },
   introspection: true
 });

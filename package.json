@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/cgarate/songbook-api#readme",
   "dependencies": {
-    "apollo-server": "^2.14.2",
+    "apollo-server": "^2.25.3",
     "firebase-admin": "^8.12.1",
     "graphql": "^15.0.0",
     "graphql-tag": "^2.10.3"
